@@ -1,0 +1,77 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: event_manager_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-event_manager}  # Добавлено имя базы
+      PGDATA: /data/postgres
+    volumes:
+      - postgres_data:/data/postgres
+    ports:
+      - "5432:5432"  # Лучше использовать стандартный порт 5432
+    networks:
+      - backend
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:  # Добавлен healthcheck
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7.4.0-alpine  # Используем alpine для меньшего размера
+    container_name: event_manager_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
+    command: redis-test_server --appendonly yes  # Включаем persistence
+    restart: unless-stopped
+
+  server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: development
+    container_name: event_manager_server
+    ports:
+      - "8000:8000"
+    environment:
+      ENV: development
+      # Явно указываем переменные для подключения к БД
+      POSTGRES_HOST: postgres  # Имя сервиса в Docker сети
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-event_manager}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy  # Ждем пока БД станет healthy
+      redis:
+        condition: service_started
+    networks:
+      - backend
+    restart: unless-stopped
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
