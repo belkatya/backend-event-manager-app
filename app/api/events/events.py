@@ -28,7 +28,7 @@ from tortoise.functions import Count
 router = APIRouter(prefix="/events", tags=["events"])
 
 
-@router.get("/", response_model=Page[BaseEvent])
+@router.get("/public", response_model=Page[BaseEvent], summary="Get Public Events")
 async def get_events(
         category_id: Optional[int] = None,
         city: Optional[str] = None,
@@ -71,7 +71,7 @@ async def get_events(
     return await tortoise_paginate(query)
 
 
-@router.get("/with-status", response_model=PaginatedEventsWithStatus)
+@router.get("/", response_model=PaginatedEventsWithStatus, summary="Get Events")
 async def get_events_with_status(
         category_id: Optional[int] = None,
         city: Optional[str] = None,
@@ -81,7 +81,7 @@ async def get_events_with_status(
         size: int = Query(20, ge=1, le=100),
         current_user: User = Depends(get_current_user)  # Требуем авторизацию
 ):
-    """Получить события со статусами пользователя (лайк/регистрация)"""
+    """Получить события"""
     query = Event.all().select_related("location", "organizer").prefetch_related("categories")
 
     # Apply filters
@@ -143,7 +143,7 @@ async def get_events_with_status(
     }
 
 
-@router.get("/{event_id}", response_model=BaseEvent)
+@router.get("/public/{event_id}", response_model=BaseEvent, summary="Get Public Event")
 async def get_event(
         event_id: int,
         current_user: Optional[User] = Depends(get_current_user_optional)
@@ -156,7 +156,7 @@ async def get_event(
     return event
 
 
-@router.get("/{event_id}/with-status", response_model=EventWithUserStatus)
+@router.get("/{event_id}", response_model=EventWithUserStatus, summary="Get Event")
 async def get_event_with_status(
         event_id: int,
         current_user: User = Depends(get_current_user)  # Требуем авторизацию
@@ -352,48 +352,13 @@ async def unregister_from_event(
     return MessageResponse(message="Successfully unregistered from event")
 
 
-@router.get("/me/created", response_model=Page[BaseEvent])
-async def get_my_created_events(current_user: User = Depends(get_current_user)):
-    events = (
-        Event.filter(organizer=current_user)
-        .select_related("location", "organizer")
-        .prefetch_related("categories")
-        .order_by("-created_at")
-    )
-    return await tortoise_paginate(events)
-
-
-@router.get("/me/liked", response_model=Page[BaseEvent])
-async def get_my_liked_events(current_user: User = Depends(get_current_user)):
-    # Используем ManyToMany связь через liked_by_users в Event
-    events = (
-        Event.filter(liked_by_users__id=current_user.id)
-        .select_related("location", "organizer")
-        .prefetch_related("categories")
-        .order_by("-created_at")
-    )
-    return await tortoise_paginate(events)
-
-
-@router.get("/me/registered", response_model=Page[BaseEvent])
-async def get_my_registered_events(current_user: User = Depends(get_current_user)):
-    # Используем ManyToMany связь через registered_users в Event
-    events = (
-        Event.filter(registered_users__id=current_user.id)
-        .select_related("location", "organizer")
-        .prefetch_related("categories")
-        .order_by("-created_at")
-    )
-    return await tortoise_paginate(events)
-
-
-@router.get("/me/created/with-status", response_model=PaginatedEventsWithStatus)
+@router.get("/me/created", response_model=PaginatedEventsWithStatus, summary="Get My Created Events")
 async def get_my_created_events_with_status(
         page: int = Query(1, ge=1),
         size: int = Query(20, ge=1, le=100),
         current_user: User = Depends(get_current_user)
 ):
-    """Получить созданные события со статусами"""
+    """Получить созданные события"""
     query = (
         Event.filter(organizer=current_user)
         .select_related("location", "organizer")
@@ -434,13 +399,13 @@ async def get_my_created_events_with_status(
     }
 
 
-@router.get("/me/liked/with-status", response_model=PaginatedEventsWithStatus)
+@router.get("/me/liked", response_model=PaginatedEventsWithStatus, summary="Get My Liked Events")
 async def get_my_liked_events_with_status(
         page: int = Query(1, ge=1),
         size: int = Query(20, ge=1, le=100),
         current_user: User = Depends(get_current_user)
 ):
-    """Получить лайкнутые события со статусами"""
+    """Получить лайкнутые события"""
     query = (
         Event.filter(liked_by__id=current_user.id)  # Исправлено: liked_by вместо liked_by_users
         .select_related("location", "organizer")
@@ -480,7 +445,7 @@ async def get_my_liked_events_with_status(
     }
 
 
-@router.get("/me/registered/with-status", response_model=PaginatedEventsWithStatus)
+@router.get("/me/registered", response_model=PaginatedEventsWithStatus, summary="Get My Registered Events")
 async def get_my_registered_events_with_status(
         page: int = Query(1, ge=1),
         size: int = Query(20, ge=1, le=100),
@@ -488,7 +453,7 @@ async def get_my_registered_events_with_status(
 ):
     """Получить зарегистрированные события со статусами"""
     query = (
-        Event.filter(participants__id=current_user.id)  # Исправлено: participants вместо registered_users
+        Event.filter(participants__id=current_user.id)
         .select_related("location", "organizer")
         .prefetch_related("categories")
         .order_by("-created_at")

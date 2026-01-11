@@ -84,14 +84,14 @@ class TestEventsAPI:
 
     async def test_get_all_events_unauthorized(self, async_client: AsyncClient):
         """Получение списка событий без авторизации"""
-        response = await async_client.get("/api/events/")
+        response = await async_client.get("/api/events/public")
         assert response.status_code == 200  # Теперь работает без авторизации
         data = response.json()
         assert isinstance(data, dict)  # Пагинированный ответ
 
     async def test_get_all_events_with_status_requires_auth(self, async_client: AsyncClient):
         """Получение событий со статусами требует авторизации"""
-        response = await async_client.get("/api/events/with-status")
+        response = await async_client.get("/api/events/")
         assert response.status_code in [401, 403]  # Требует авторизации
 
     async def test_get_events_with_status_success(self, async_client: AsyncClient):
@@ -129,7 +129,7 @@ class TestEventsAPI:
         await user.liked_events.add(event1)
 
         response = await async_client.get(
-            "/api/events/with-status",
+            "/api/events/",
             headers={"Authorization": f"Bearer {token}"},
         )
 
@@ -174,7 +174,7 @@ class TestEventsAPI:
         await user.liked_events.add(event)
 
         response = await async_client.get(
-            f"/api/events/{event.id}/with-status",
+            f"/api/events/{event.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
 
@@ -190,7 +190,7 @@ class TestEventsAPI:
         token, _ = await self._create_test_user(async_client, "notfound_status@example.com")
 
         response = await async_client.get(
-            "/api/events/999999/with-status",
+            "/api/events/999999",
             headers={"Authorization": f"Bearer {token}"},
         )
 
@@ -227,7 +227,7 @@ class TestEventsAPI:
 
         # Проверяем статус
         status_response = await async_client.get(
-            f"/api/events/{event.id}/with-status",
+            f"/api/events/{event.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert status_response.json()["is_liked"] is True
@@ -243,7 +243,7 @@ class TestEventsAPI:
 
         # Проверяем статус
         status_response2 = await async_client.get(
-            f"/api/events/{event.id}/with-status",
+            f"/api/events/{event.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert status_response2.json()["is_liked"] is False
@@ -277,7 +277,7 @@ class TestEventsAPI:
 
         # Проверяем статус
         status_response = await async_client.get(
-            f"/api/events/{event.id}/with-status",
+            f"/api/events/{event.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert status_response.json()["is_registered"] is True
@@ -298,7 +298,7 @@ class TestEventsAPI:
 
         # Проверяем статус
         status_response2 = await async_client.get(
-            f"/api/events/{event.id}/with-status",
+            f"/api/events/{event.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert status_response2.json()["is_registered"] is False
@@ -328,7 +328,7 @@ class TestEventsAPI:
         await user.liked_events.add(event)
 
         response = await async_client.get(
-            "/api/events/me/created/with-status",
+            "/api/events/me/created",
             headers={"Authorization": f"Bearer {token}"},
         )
 
@@ -374,7 +374,7 @@ class TestEventsAPI:
         await user.liked_events.add(event)
 
         response = await async_client.get(
-            "/api/events/me/liked/with-status",
+            "/api/events/me/liked",
             headers={"Authorization": f"Bearer {token}"},
         )
 
@@ -419,7 +419,7 @@ class TestEventsAPI:
         await user.registered_events.add(event)
 
         response = await async_client.get(
-            "/api/events/me/registered/with-status",
+            "/api/events/me/registered",
             headers={"Authorization": f"Bearer {token}"},
         )
 
@@ -563,7 +563,7 @@ class TestEventsAPI:
     async def test_get_all_events_empty(self, async_client: AsyncClient):
         """Получение списка событий (пустой)"""
         # Не требует авторизации
-        response = await async_client.get("/api/events/")
+        response = await async_client.get("/api/events/public")
 
         assert response.status_code == 200
         data = response.json()
@@ -607,7 +607,7 @@ class TestEventsAPI:
         await event.categories.add(category)
 
         # Получаем событие по ID (не требует авторизации)
-        response = await async_client.get(f"/api/events/{event.id}")
+        response = await async_client.get(f"/api/events/public/{event.id}")
 
         assert response.status_code == 200
         data = response.json()
@@ -671,7 +671,7 @@ class TestEventsAPI:
         await event2.categories.add(category_sport)
 
         # Фильтруем по категории "Музыка" (без авторизации)
-        response = await async_client.get(f"/api/events/?category_id={category_music.id}")
+        response = await async_client.get(f"/api/events/public?category_id={category_music.id}")
 
         assert response.status_code == 200
         data = response.json()
@@ -712,7 +712,7 @@ class TestEventsAPI:
             await event.categories.add(category)
 
         # Первая страница (без авторизации)
-        response = await async_client.get("/api/events/?page=1&size=5")
+        response = await async_client.get("/api/events/public?page=1&size=5")
 
         assert response.status_code == 200
         data = response.json()
@@ -726,7 +726,7 @@ class TestEventsAPI:
         assert data['pages'] >= 3
 
         # Проверяем вторую страницу
-        response_page2 = await async_client.get("/api/events/?page=2&size=5")
+        response_page2 = await async_client.get("/api/events/public?page=2&size=5")
         assert response_page2.status_code == 200
         data_page2 = response_page2.json()
 
